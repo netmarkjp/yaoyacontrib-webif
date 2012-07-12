@@ -19,6 +19,12 @@ shell::
  # on MacOSX, if pymongo installation failed, exec following line
  env ARCHFLAGS="-arch i386 -arch x86_64" pip install -r requirements.txt
 
+Run
+========================
+
+shell::
+
+ python yaoya-webif/application.py
 
 Development
 ========================
