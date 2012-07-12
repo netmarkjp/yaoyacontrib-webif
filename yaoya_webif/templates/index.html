@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+{% block title %}
+Documents
+{% endblock %}
+{% block script %}
+<script languate="javascript">
+function updateList(url, target){
+    $.getJSON(url,{},function(jsondata){
+        var values=jsondata['values'];
+        $(values).each(function(i,val){
+            $(target).append('<option>'+val+'</option>');
+        });
+    });
+};
+$(function(){
+    updateList('/api/values/*/group_name','#select_group');
+    $('#select_group').change(function(){
+        group_name=$('#select_group option:selected').text();
+        $('#select_command').children().remove();
+        updateList('/api/values/'+group_name+'/command_name','#select_command');
+    });
+    $('#button_filter').click(function(){
+        group_name=$('#select_group option:selected').text();
+        command_name=$('#select_command option:selected').text();
+        $.getJSON('/api/results/'+group_name+'/'+command_name,{},function(jsondata){
+            var results=jsondata['results'];
+            $('#tbody_result').children().remove();
+            $(results).each(function(i,result){
+                $('#tbody_result').append(
+                 '<tr>'
+                +'<td>'+result['host_name']+'</td>'
+                +'<td><pre>'+result['output']+'</pre></td>'
+                +'<td>'+result['execute_at']+'</td>'
+                +'</tr>');
+            });
+        });
+    });
+});
+</script>
+<style type="text/css">
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+<div class="span12 offset0">
+    <!--  -->
+    <div class="span8">
+        <form class="form-inline">
+            <fieldset>
+                <label class="control-label">
+                    Group Name
+                    <select id="select_group">
+                        <option>select</option>
+                    </select>
+                </label>
+                <label class="control-label">
+                    Command Name
+                    <select id="select_command">
+                        <option>select</option>
+                    </select>
+                </label>
+                <button type="button" id="button_filter" class="btn btn-primary">filter</button>
+            </fieldset>
+        </form>
+    </div>
+
+    <!-- data -->
+    <div class="span11">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>hostname</th>
+                    <th>output</th>
+                    <th>execute at</th>
+                </tr>
+            </thead>
+            <tbody id='tbody_result'>
+                <tr>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+{% endblock %}
