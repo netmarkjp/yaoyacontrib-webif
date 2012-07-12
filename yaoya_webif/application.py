@@ -6,14 +6,19 @@ from flask import redirect
 from flask import request
 from flask import jsonify
 from pymongo import Connection
+from ConfigParser import ConfigParser
 import re
 
 app = Flask(__name__)
 
-MONGODB_HOST = '192.168.56.111'
-MONGODB_PORT = 27017
-DBS_NAME = 'nouka'
-COLLECTION_NAME = 'naya'
+CONFIG_FILE="./conf/yaoya.conf"
+
+config = ConfigParser()
+config.read(CONFIG_FILE)
+MONGODB_HOST = config.get('server','mongo_host')
+MONGODB_PORT = int(config.get('server','mongo_port'))
+DBS_NAME = config.get('server','mongo_dbs')
+COLLECTION_NAME = config.get('server','mongo_collection')
 
 
 @app.route("/")
