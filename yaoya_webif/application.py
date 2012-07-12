@@ -25,11 +25,6 @@ COLLECTION_NAME = config.get('server','mongo_collection')
 def index():
     return render_template("index.html")
 
-@app.route("/api")
-@app.route("/api/")
-def api_index():
-    return render_template("api_index.html")
-
 @app.route("/api/values/<group_name>/<field_name>")
 def api_values(group_name,field_name):
     connection = Connection(MONGODB_HOST, MONGODB_PORT)
