@@ -20,7 +20,7 @@ $(function(){
         $('#select_command').children().remove();
         updateList('/api/values/'+group_name+'/command_name','#select_command');
     });
-    $('#button_filter').click(function(){
+    $('#select_command').change(function(){
         group_name=$('#select_group option:selected').text();
         command_name=$('#select_command option:selected').text();
         $.getJSON('/api/results/'+group_name+'/'+command_name,{},function(jsondata){
@@ -62,7 +62,6 @@ $(function(){
                         <option>select</option>
                     </select>
                 </label>
-                <button type="button" id="button_filter" class="btn btn-primary">filter</button>
             </fieldset>
         </form>
     </div>
