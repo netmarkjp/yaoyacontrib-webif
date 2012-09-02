@@ -206,7 +206,7 @@ def api_latests_html(group_name):
 
 class MyHost(object):
     host_name=''
-    daemons=[]
+    chkconfigs=[]
     rpms=[]
 
 def filter_rpms(output):
@@ -247,6 +247,51 @@ def api_rpms_html(group_name):
         html_output=html_output+'<td style="white-space:pre;">%s</td>'%rpm
         for host in hosts:
             mark=mark_on if rpm in host.rpms else mark_off
+            html_output=html_output+'<td style="white-space:pre;">%s</td>'%mark
+        html_output=html_output+'</tr>\n'
+    return html_output
+
+def filter_chkconfigs(runlevel,output):
+    on_mark=".*"+runlevel+".on.*"
+    for line in output.split('\n'):
+        if re.search(on_mark,line):
+            result=re.split('0:.*',line)[0]
+            result=re.sub('\t+','',result)
+            result=re.sub(' +','',result)
+            yield result
+
+@app.route("/api/chkconfigs_html/<group_name>")
+def api_chkconfigs_html(group_name):
+    host_names=get_host_names(group_name)
+    host_names.sort()
+    hosts=[]
+    for host_name in host_names:
+        host=MyHost()
+        host.host_name=host_name
+
+        latest=get_latest(group_name,host_name,'command_chkconfig')
+        host.chkconfigs=[chkconfig for chkconfig in filter_chkconfigs('3',latest['output'])]
+        hosts.append(host)
+    chkconfigs=[]
+    for host in hosts:
+        for chkconfig in host.chkconfigs:
+            if chkconfig not in chkconfigs:
+                chkconfigs.append(chkconfig)
+    chkconfigs.sort()
+
+    html_output=''
+    mark_on=u'◯'
+    mark_off=u''
+    html_output=html_output+'<tr>'
+    html_output=html_output+'<td style="white-space:pre;">%s</td>'%u'ホスト名'
+    for host in hosts:
+        html_output=html_output+'<td style="white-space:pre;">%s</td>'%host.host_name
+    html_output=html_output+'</tr>\n'
+    for chkconfig in chkconfigs:
+        html_output=html_output+'<tr>'
+        html_output=html_output+'<td style="white-space:pre;">%s</td>'%chkconfig
+        for host in hosts:
+            mark=mark_on if chkconfig in host.chkconfigs else mark_off
             html_output=html_output+'<td style="white-space:pre;">%s</td>'%mark
         html_output=html_output+'</tr>\n'
     return html_output

@@ -26,6 +26,11 @@ $(function(){
             $('#rpms_table').children().remove();
             $('#rpms_table').append(htmldata);
         });
+        $.get('/api/chkconfigs_html/'+group_name,{},function(htmldata){
+//            console.log(htmldata)
+            $('#chkconfigs_table').children().remove();
+            $('#chkconfigs_table').append(htmldata);
+        });
     });
 });
 </script>
