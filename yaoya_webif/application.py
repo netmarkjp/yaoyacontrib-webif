@@ -64,7 +64,7 @@ def normalize_result(result):
 def index():
     return render_template("index.html")
 
-@app.route("/project/specsheet")
+@app.route("/specsheet")
 def project_specsheet():
     return render_template("specsheet.html")
 
