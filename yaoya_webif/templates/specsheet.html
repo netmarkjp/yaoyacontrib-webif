@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% block title %}
+Documents
+{% endblock %}
+{% block script %}
+<script src="/static/js/DateFormatter.js" type="text/javascript"></script>
+<script languate="javascript">
+function updateList(url, target){
+    $.getJSON(url,{},function(jsondata){
+        var values=jsondata['values'];
+        $(values).each(function(i,val){
+            $(target).append('<option>'+val+'</option>');
+        });
+    });
+};
+$(function(){
+    updateList('/api/values/*/group_name','#select_group');
+    $('#select_group').change(function(){
+        group_name=$('#select_group option:selected').text();
+        $.get('/api/latests_html/'+group_name,{},function(htmldata){
+            $('#result_table').children().remove();
+            $('#result_table').append(htmldata);
+        });
+        $.get('/api/rpms_html/'+group_name,{},function(htmldata){
+//            console.log(htmldata)
+            $('#rpms_table').children().remove();
+            $('#rpms_table').append(htmldata);
+        });
+    });
+});
+</script>
+<style type="text/css">
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+<div class="span12 offset0">
+    <!--  -->
+    <div class="span8">
+        <form class="form-inline">
+            <fieldset>
+                <label class="control-label">
+                    Group Name
+                    <select id="select_group">
+                        <option>select</option>
+                    </select>
+                </label>
+            </fieldset>
+        </form>
+    </div>
+
+    <!-- data -->
+    <div class="span8">
+        <h1>サーバ設定情報</h1>
+    </div>
+    <div class="span11">
+        <table class="table table-condensed table-striped" id="result_table">
+        </table>
+    </div>
+    <div class="span8">
+        <h1>インストールソフトウェア一覧</h1>
+    </div>
+    <div class="span11">
+        <table class="table table-condensed table-striped" id="rpms_table">
+        </table>
+    </div>
+    <div class="span8">
+        <h1>サービス起動設定一覧</h1>
+    </div>
+    <div class="span11">
+        <table class="table table-condensed table-striped" id="chkconfigs_table">
+        </table>
+    </div>
+</div>
+</div>
+{% endblock %}
