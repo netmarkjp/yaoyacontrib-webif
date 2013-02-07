@@ -282,7 +282,11 @@ def api_latests_html(group_name):
             data=[data for data in jsondata['results'] 
                     if data['host_name']==host_name and 
                     data['command_name']==x_element['command_name']
-                    ][0]
+                    ]
+            if len(data) > 0:
+                data=data[0]
+            else:
+                continue
             if x_element.has_key('filter_pattern'):
                 command_output=''
                 for line in data['output'].split('\n'):
