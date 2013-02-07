@@ -303,12 +303,12 @@ def api_chkconfigs_html(group_name):
 #------------------------------------------------------------------------------#
 
 @app.route("/api/latests_text/<group_name>")
+def api_latests_text(group_name):
     """
     マシン一覧をテキストで返します
     @param group_name グループ名を指定します
     @return ExcelでコピペがしやすいTSV形式のテキストを返します
     """
-def api_latests_text(group_name):
     jsondata=get_latests(group_name)
     text_output=''
     html_output_x_elements=[
@@ -328,7 +328,7 @@ def api_latests_text(group_name):
 #    {'description':u'',  'command_name':'command_'},
     ]
     for x_element in html_output_x_elements:
-        text_output += "%s\t" % ['description']
+        text_output += "\"%s\"\t" % x_element['description']
         for host_name in jsondata['host_names']:
             data=[data for data in jsondata['results'] 
                     if data['host_name']==host_name and 
@@ -375,9 +375,9 @@ def api_rpms_text(group_name):
     text_output=''
     mark_on=u'◯'
     mark_off=u''
-    text_output += "%s\t" % u'ホスト名'
+    text_output += "\"%s\"\t" % u'ホスト名'
     for host in hosts:
-        text_output += "%s\t" % host.host_name
+        text_output += "\"%s\"\t" % host.host_name
     text_output += "\n"
     for rpm in rpms:
         text_output += "\"%s\"\t" % rpm
@@ -392,6 +392,11 @@ def api_rpms_text(group_name):
 
 @app.route("/api/chkconfigs_text/<group_name>")
 def api_chkconfigs_text(group_name):
+    """
+    chkconfig一覧をテキストで返します
+    @param group_name グループ名を指定します
+    @return ExcelでコピペがしやすいTSV形式のテキストを返します
+    """
     host_names=get_host_names(group_name)
     host_names.sort()
     hosts=[]
@@ -414,7 +419,7 @@ def api_chkconfigs_text(group_name):
     mark_off=u''
     text_output += "%s\t" % u'ホスト名'
     for host in hosts:
-        text_output += "%s\t" % host.host_name
+        text_output += "\"%s\"\t" % host.host_name
     text_output += "\n"
     for chkconfig in chkconfigs:
         text_output += "%s\t" % chkconfig
