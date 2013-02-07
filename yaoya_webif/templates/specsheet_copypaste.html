@@ -19,7 +19,6 @@ $(function(){
         group_name=$('#select_group option:selected').text();
         $.get('/api/latests_text/'+group_name,{},function(textdata){
             $('#result_table').val( textdata );
-            alert( textdata )
         });
         $.get('/api/rpms_text/'+group_name,{},function(textdata){
             $('#rpms_table').val( textdata );
