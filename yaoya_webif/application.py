@@ -174,7 +174,7 @@ def project_specsheet():
     return render_template("specsheet.html")
 
 @app.route("/specsheet_copypaste")
-def project_specsheet():
+def project_specsheet_copypaste():
     return render_template("specsheet_copypaste.html")
 
 @app.route("/api/values/<group_name>/<field_name>")
