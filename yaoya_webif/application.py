@@ -270,13 +270,26 @@ def api_latests_html(group_name):
     jsondata=get_latests(group_name)
     html_output=''
     newline_to_br=re.compile(r'\n')
+    host_names=get_host_names(group_name)
+    host_names.sort()
+    html_output=html_output+'<tr>'
+    html_output=html_output+'<td style="white-space:pre;">'
+    html_output=html_output+u'ホスト名'
+    html_output=html_output+'</td>'
+    for host_name in host_names:
+        html_output=html_output+'<td style="white-space:pre;">'
+        html_output=html_output+host_name
+        html_output=html_output+'</td>'
+        html_output=html_output+'\n'
+    html_output=html_output+'</tr>'
+    html_output=html_output+'\n'
     for x_element in X_ELEMENTS_LIST:
         html_output=html_output+'<tr>'
         html_output=html_output+'<td style="white-space:pre;">'
         html_output=html_output+x_element['description']
         html_output=html_output+'</td>'
         html_output=html_output+'\n'
-        for host_name in jsondata['host_names']:
+        for host_name in host_names:
             html_output=html_output+'<td style="white-space:pre;">'
             data=[data for data in jsondata['results'] 
                     if data['host_name']==host_name and 
@@ -405,13 +418,23 @@ def api_latests_text(group_name):
     """
     jsondata=get_latests(group_name)
     text_output=''
+    host_names=get_host_names(group_name)
+    host_names.sort()
+    text_output += "\"%s\"\t" % u'ホスト名'
+    for host_name in host_names:
+        text_output += "\"%s\"\t" % host_name
+    text_output += "\n"
     for x_element in X_ELEMENTS_LIST:
         text_output += "\"%s\"\t" % x_element['description']
-        for host_name in jsondata['host_names']:
+        for host_name in host_names:
             data=[data for data in jsondata['results'] 
                     if data['host_name']==host_name and 
                     data['command_name']==x_element['command_name']
-                    ][0]
+                    ]
+            if len(data) > 0:
+                data=data[0]
+            else:
+                continue
             if x_element.has_key('filter_pattern'):
                 command_output=''
                 for line in data['output'].split('\n'):
@@ -478,7 +501,7 @@ def api_chkconfigs_text(group_name):
     @param group_name グループ名を指定します
     @return ExcelでコピペがしやすいTSV形式のテキストを返します
     """
-    header("Content-type: text/plain")
+    #header("Content-type: text/plain")
     
     host_names=get_host_names(group_name)
     host_names.sort()
@@ -518,7 +541,7 @@ def api_chkconfigs_text(group_name):
 # この宣言は、関数ポインタとしてあげている関数より下に書く必要があります
 # 関数より前に書くと、関数未定義エラーとなります。
 X_ELEMENTS_LIST=[
-    {'description':u'ホスト名',     'command_name':'command_hostname'},
+    {'description':u'hostname',     'command_name':'command_hostname'},
     {'description':u'カーネル',     'command_name':'command_uname',
         'filter_method':parseUnameA},
     {'description':u'IPアドレス',   'command_name':'command_ip_addr',
