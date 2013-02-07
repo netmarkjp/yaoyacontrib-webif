@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% block title %}
+Documents
+{% endblock %}
+{% block script %}
+<script src="/static/js/DateFormatter.js" type="text/javascript"></script>
+<script languate="javascript">
+function updateList(url, target){
+    $.getJSON(url,{},function(jsondata){
+        var values=jsondata['values'];
+        $(values).each(function(i,val){
+            $(target).append('<option>'+val+'</option>');
+        });
+    });
+};
+$(function(){
+    updateList('/api/values/*/group_name','#select_group');
+    $('#select_group').change(function(){
+        group_name=$('#select_group option:selected').text();
+        $.get('/api/latests_text/'+group_name,{},function(textdata){
+            $('#result_table').value = textdata;
+        });
+        $.get('/api/rpms_text/'+group_name,{},function(textdata){
+            $('#rpms_table').value = textdata;
+        });
+        $.get('/api/chkconfigs_text/'+group_name,{},function(textdata){
+            $('#chkconfigs_table').value = textdata;
+        });
+    });
+});
+</script>
+<style type="text/css">
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+<div class="span12 offset0">
+    <!--  -->
+    <div class="span8">
+        <form class="form-inline">
+            <fieldset>
+                <label class="control-label">
+                    Group Name
+                    <select id="select_group">
+                        <option>select</option>
+                    </select>
+                </label>
+            </fieldset>
+        </form>
+    </div>
+
+    <!-- data -->
+    <div class="span8">
+        <h1>サーバ設定情報</h1>
+    </div>
+    <div class="span11">
+        <textarea rows="5" cols="80" id="result_table">
+        </textarea>
+    </div>
+    <div class="span8">
+        <h1>インストールソフトウェア一覧</h1>
+    </div>
+    <div class="span11">
+        <textarea rows="5" cols="80" id="rpms_table">
+        </textarea>
+    </div>
+    <div class="span8">
+        <h1>サービス起動設定一覧</h1>
+    </div>
+    <div class="span11">
+        <textarea rows="5" cols="80" id="chkconfigs_table">
+        </textarea>
+    </div>
+</div>
+</div>
+{% endblock %}

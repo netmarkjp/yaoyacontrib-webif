@@ -68,6 +68,10 @@ def index():
 def project_specsheet():
     return render_template("specsheet.html")
 
+@app.route("/specsheet_copypaste")
+def project_specsheet():
+    return render_template("specsheet_copypaste.html")
+
 @app.route("/api/values/<group_name>/<field_name>")
 def api_values(group_name,field_name):
     connection = Connection(MONGODB_HOST, MONGODB_PORT)
@@ -295,6 +299,133 @@ def api_chkconfigs_html(group_name):
             html_output=html_output+'<td style="white-space:pre;">%s</td>'%mark
         html_output=html_output+'</tr>\n'
     return html_output
+
+#------------------------------------------------------------------------------#
+
+@app.route("/api/latests_text/<group_name>")
+    """
+    マシン一覧をテキストで返します
+    @param group_name グループ名を指定します
+    @return ExcelでコピペがしやすいTSV形式のテキストを返します
+    """
+def api_latests_text(group_name):
+    jsondata=get_latests(group_name)
+    text_output=''
+    html_output_x_elements=[
+    {'description':u'ホスト名',     'command_name':'command_hostname'},
+    {'description':u'カーネル',     'command_name':'command_uname'},
+    {'description':u'IPアドレス',   'command_name':'command_ip_addr',
+        'filter_pattern':r'(^[a-zA-Z0-9]|inet .* scope)'},
+    {'description':u'ルーティング', 'command_name':'command_ip_route'},
+    {'description':u'DNS',          'command_name':'command_resolv',
+        'filter_pattern':r'^[^(;|#)]'},
+    {'description':u'CPU',          'command_name':'command_proc_cpuinfo',
+        'filter_pattern':r'^(processor|model name|cpu MHz)'},
+    {'description':u'メモリ',       'command_name':'command_proc_meminfo',
+        'filter_pattern':r'^(Mem|Swap)Total'},
+    {'description':u'ディスク',     'command_name':'command_df',
+        'filter_pattern':r'^[^(proc|sysfs|dev|none|tmp)]'},
+#    {'description':u'',  'command_name':'command_'},
+    ]
+    for x_element in html_output_x_elements:
+        text_output += "%s\t" % ['description']
+        for host_name in jsondata['host_names']:
+            data=[data for data in jsondata['results'] 
+                    if data['host_name']==host_name and 
+                    data['command_name']==x_element['command_name']
+                    ][0]
+            if x_element.has_key('filter_pattern'):
+                command_output=''
+                for line in data['output'].split('\n'):
+                    if re.search(x_element['filter_pattern'],line):
+                        command_output=command_output+line+'\n'
+            else:
+                command_output=data['output']
+            text_output += "\"%s\"\t" % command_output.replace( '"', '\"' )
+        text_output += "\n"
+        
+    return text_output
+
+#------------------------------------------------------------------------------#
+
+@app.route("/api/rpms_text/<group_name>")
+def api_rpms_text(group_name):
+    """
+    RPM一覧をテキストで返します
+    @param group_name グループ名を指定します
+    @return ExcelでコピペがしやすいTSV形式のテキストを返します
+    """
+    host_names=get_host_names(group_name)
+    host_names.sort()
+    hosts=[]
+    for host_name in host_names:
+        host=MyHost()
+        host.host_name=host_name
+
+        latest=get_latest(group_name,host_name,'command_rpm')
+        host.rpms=[rpm for rpm in filter_rpms(latest['output'])]
+        hosts.append(host)
+    rpms=[]
+    for host in hosts:
+        for rpm in host.rpms:
+            if rpm not in rpms:
+                rpms.append(rpm)
+    rpms.sort()
+
+    text_output=''
+    mark_on=u'◯'
+    mark_off=u''
+    text_output += "%s\t" % u'ホスト名'
+    for host in hosts:
+        text_output += "%s\t" % host.host_name
+    text_output += "\n"
+    for rpm in rpms:
+        text_output += "\"%s\"\t" % rpm
+        for host in hosts:
+            mark = mark_on if rpm in host.rpms else mark_off
+            text_output += "\"%s\"\t" % mark
+        text_output += "\n"
+        
+    return text_output
+
+#------------------------------------------------------------------------------#
+
+@app.route("/api/chkconfigs_text/<group_name>")
+def api_chkconfigs_text(group_name):
+    host_names=get_host_names(group_name)
+    host_names.sort()
+    hosts=[]
+    for host_name in host_names:
+        host=MyHost()
+        host.host_name=host_name
+
+        latest=get_latest(group_name,host_name,'command_chkconfig')
+        host.chkconfigs=[chkconfig for chkconfig in filter_chkconfigs('3',latest['output'])]
+        hosts.append(host)
+    chkconfigs=[]
+    for host in hosts:
+        for chkconfig in host.chkconfigs:
+            if chkconfig not in chkconfigs:
+                chkconfigs.append(chkconfig)
+    chkconfigs.sort()
+
+    text_output=''
+    mark_on=u'◯'
+    mark_off=u''
+    text_output += "%s\t" % u'ホスト名'
+    for host in hosts:
+        text_output += "%s\t" % host.host_name
+    text_output += "\n"
+    for chkconfig in chkconfigs:
+        text_output += "%s\t" % chkconfig
+        for host in hosts:
+            mark=mark_on if chkconfig in host.chkconfigs else mark_off
+            text_output += "%s\t" % mark
+        text_output += "\n"
+        
+    return text_output
+
+#------------------------------------------------------------------------------#
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0',port=5000,debug=True)
