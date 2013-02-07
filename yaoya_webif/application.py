@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #coding: utf-8
-from flask import Flask
+from flask import Flask, Response
 from flask import render_template
 from flask import redirect
 from flask import request
@@ -22,6 +22,111 @@ MONGODB_HOST = config.get('server','mongo_host')
 MONGODB_PORT = int(config.get('server','mongo_port'))
 DBS_NAME = config.get('server','mongo_dbs')
 COLLECTION_NAME = config.get('server','mongo_collection')
+
+#------------------------------------------------------------------------------#
+
+def parseUnameA( rawdata ):
+  """
+  'uname -a'からカーネルのバージョン情報を抽出します
+  @param rawdata uname -aの生データを入れます
+  @return カーネルのバージョン情報のみを返します
+  """
+  return rawdata.split( " " )[2]
+
+#------------------------------------------------------------------------------#
+
+def parseIPAddr( rawdata ):
+  """
+  'ip addr show'からIPアドレスを抽出します
+  @param rawdata ip addr show の生データを入れます
+  @return IPアドレス情報のみを返します
+  """
+  lines = rawdata.split( "\n" )
+  ifname = ""
+  result = []
+  
+  for line in lines:
+    if ifname == "" and re.match( "^([0-9]+)", line ):
+      ifname = line.split( " " )[1]
+      ifname = ifname.replace( ":", "" )
+    elif re.match( "( +)inet ", line ):
+      ipaddr = line.strip()
+      ipaddr = ipaddr.split( " " )[1]
+      ipaddr = ipaddr.split( "/" )[0]
+      if ifname != 'lo':
+        result.append( "%s:%s" % ( ifname, ipaddr ) )
+      ifname = ""
+  
+  return "\n".join( result )
+
+#------------------------------------------------------------------------------#
+
+def parseRoute( rawdata ):
+  """
+  'ip route show'からゲートウェイアドレスを抽出します
+  @param rawdata ip route show の生データを入れます
+  @return ゲートウェイアドレス情報のみを返します
+  """
+  lines = rawdata.split( "\n" )
+  result = []
+  
+  for line in lines:
+    if re.match( "(.*)via ", line ):
+      gateway_info = line.split( " " )
+      result.append( "%s:%s" % ( gateway_info[0], gateway_info[2] ) )
+  
+  return "\n".join( result )
+
+#------------------------------------------------------------------------------#
+
+def parseResolvConf( rawdata ):
+  """
+  'resolv.conf'からDNSサーバアドレスを抽出します
+  @param rawdata resolv.confの生データを入れます
+  @return DNSサーバアドレス情報のみを返します
+  """
+  lines = rawdata.split( "\n" )
+  result = []
+  
+  for line in lines:
+    if re.match( "nameserver", line ):
+      info = line.split( " " )
+      result.append( "%s" % info[1] )
+  
+  return "\n".join( result )
+
+#------------------------------------------------------------------------------#
+
+def parseCPUInfo( rawdata ):
+  """
+  'resolv.conf'からDNSサーバアドレスを抽出します
+  @param rawdata resolv.confの生データを入れます
+  @return DNSサーバアドレス情報のみを返します
+  """
+  lines = rawdata.split( "\n" )
+  processors = 0
+  model_name = ""
+  cpu_MHz = ""
+  
+  for line in lines:
+    line = line.strip()
+    data = line.split( ":" )
+    if re.match( "processor", data[0] ):
+      processors += 1
+    elif model_name == "" and re.match( "model name", data[0] ):
+      model_name = data[1]
+    elif cpu_MHz == "" and re.match( "cpu MHz", data[0] ):
+      cpu_MHz = data[1]
+      print "\"%s\"" % cpu_MHz
+  
+  result =  ""
+  result += "Model: %s\n" % model_name
+  result += "Clock: %.2f GHz\n" % round( float( cpu_MHz ) * 0.001, 2 )
+  result += "Cores: %d" % processors
+  
+  return result;
+
+#------------------------------------------------------------------------------#
 
 def get_latest(group_name,host_name,command_name):
     connection = Connection(MONGODB_HOST, MONGODB_PORT)
@@ -67,6 +172,10 @@ def index():
 @app.route("/specsheet")
 def project_specsheet():
     return render_template("specsheet.html")
+
+@app.route("/specsheet_copypaste")
+def project_specsheet_copypaste():
+    return render_template("specsheet_copypaste.html")
 
 @app.route("/api/values/<group_name>/<field_name>")
 def api_values(group_name,field_name):
@@ -161,24 +270,8 @@ def to_html(text):
 def api_latests_html(group_name):
     jsondata=get_latests(group_name)
     html_output=''
-    html_output_x_elements=[
-    {'description':u'ホスト名',     'command_name':'command_hostname'},
-    {'description':u'カーネル',     'command_name':'command_uname'},
-    {'description':u'IPアドレス',   'command_name':'command_ip_addr',
-        'filter_pattern':r'(^[a-zA-Z0-9]|inet .* scope)'},
-    {'description':u'ルーティング', 'command_name':'command_ip_route'},
-    {'description':u'DNS',          'command_name':'command_resolv',
-        'filter_pattern':r'^[^(;|#)]'},
-    {'description':u'CPU',          'command_name':'command_proc_cpuinfo',
-        'filter_pattern':r'^(processor|model name|cpu MHz)'},
-    {'description':u'メモリ',       'command_name':'command_proc_meminfo',
-        'filter_pattern':r'^(Mem|Swap)Total'},
-    {'description':u'ディスク',     'command_name':'command_df',
-        'filter_pattern':r'^[^(proc|sysfs|dev|none|tmp)]'},
-#    {'description':u'',  'command_name':'command_'},
-    ]
     newline_to_br=re.compile(r'\n')
-    for x_element in html_output_x_elements:
+    for x_element in X_ELEMENTS_LIST:
         html_output=html_output+'<tr>'
         html_output=html_output+'<td style="white-space:pre;">'
         html_output=html_output+x_element['description']
@@ -195,6 +288,8 @@ def api_latests_html(group_name):
                 for line in data['output'].split('\n'):
                     if re.search(x_element['filter_pattern'],line):
                         command_output=command_output+line+'\n'
+            elif x_element.has_key('filter_method'):
+                command_output = x_element['filter_method']( data['output'] )
             else:
                 command_output=data['output']
             html_output=html_output+to_html(escape(command_output))
@@ -295,6 +390,150 @@ def api_chkconfigs_html(group_name):
             html_output=html_output+'<td style="white-space:pre;">%s</td>'%mark
         html_output=html_output+'</tr>\n'
     return html_output
+
+#------------------------------------------------------------------------------#
+
+@app.route("/api/latests_text/<group_name>")
+def api_latests_text(group_name):
+    """
+    マシン一覧をテキストで返します
+    @param group_name グループ名を指定します
+    @return ExcelでコピペがしやすいTSV形式のテキストを返します
+    """
+    jsondata=get_latests(group_name)
+    text_output=''
+    for x_element in X_ELEMENTS_LIST:
+        text_output += "\"%s\"\t" % x_element['description']
+        for host_name in jsondata['host_names']:
+            data=[data for data in jsondata['results'] 
+                    if data['host_name']==host_name and 
+                    data['command_name']==x_element['command_name']
+                    ][0]
+            if x_element.has_key('filter_pattern'):
+                command_output=''
+                for line in data['output'].split('\n'):
+                    if re.search(x_element['filter_pattern'],line):
+                        command_output=command_output+line+'\n'
+            elif x_element.has_key('filter_method'):
+                command_output = x_element['filter_method']( data['output'] )
+            else:
+                command_output=data['output']
+            command_output = command_output.replace( '"', '\"' ).rstrip()
+            text_output += "\"%s\"\t" % command_output
+        text_output += "\n"
+        
+    return Response( text_output, mimetype = "text/plain" )
+
+#------------------------------------------------------------------------------#
+
+@app.route("/api/rpms_text/<group_name>")
+def api_rpms_text(group_name):
+    """
+    RPM一覧をテキストで返します
+    @param group_name グループ名を指定します
+    @return ExcelでコピペがしやすいTSV形式のテキストを返します
+    """
+    host_names=get_host_names(group_name)
+    host_names.sort()
+    hosts=[]
+    for host_name in host_names:
+        host=MyHost()
+        host.host_name=host_name
+
+        latest=get_latest(group_name,host_name,'command_rpm')
+        host.rpms=[rpm for rpm in filter_rpms(latest['output'])]
+        hosts.append(host)
+    rpms=[]
+    for host in hosts:
+        for rpm in host.rpms:
+            if rpm not in rpms:
+                rpms.append(rpm)
+    rpms.sort()
+
+    text_output=''
+    mark_on=u'◯'
+    mark_off=u''
+    text_output += "\"%s\"\t" % u'ホスト名'
+    for host in hosts:
+        text_output += "\"%s\"\t" % host.host_name
+    text_output += "\n"
+    for rpm in rpms:
+        text_output += "%s\t" % rpm
+        for host in hosts:
+            mark = mark_on if rpm in host.rpms else mark_off
+            text_output += "%s\t" % mark
+        text_output += "\n"
+        
+    return Response( text_output, mimetype = "text/plain" )
+    
+#------------------------------------------------------------------------------#
+
+@app.route("/api/chkconfigs_text/<group_name>")
+def api_chkconfigs_text(group_name):
+    """
+    chkconfig一覧をテキストで返します
+    @param group_name グループ名を指定します
+    @return ExcelでコピペがしやすいTSV形式のテキストを返します
+    """
+    header("Content-type: text/plain")
+    
+    host_names=get_host_names(group_name)
+    host_names.sort()
+    hosts=[]
+    for host_name in host_names:
+        host=MyHost()
+        host.host_name=host_name
+
+        latest=get_latest(group_name,host_name,'command_chkconfig')
+        host.chkconfigs=[chkconfig for chkconfig in filter_chkconfigs('3',latest['output'])]
+        hosts.append(host)
+    chkconfigs=[]
+    for host in hosts:
+        for chkconfig in host.chkconfigs:
+            if chkconfig not in chkconfigs:
+                chkconfigs.append(chkconfig)
+    chkconfigs.sort()
+
+    text_output=''
+    mark_on=u'◯'
+    mark_off=u''
+    text_output += "%s\t" % u'ホスト名'
+    for host in hosts:
+        text_output += "\"%s\"\t" % host.host_name
+    text_output += "\n"
+    for chkconfig in chkconfigs:
+        text_output += "%s\t" % chkconfig
+        for host in hosts:
+            mark=mark_on if chkconfig in host.chkconfigs else mark_off
+            text_output += "%s\t" % mark
+        text_output += "\n"
+        
+    return Response( text_output, mimetype = "text/plain" )
+
+#------------------------------------------------------------------------------#
+
+# この宣言は、関数ポインタとしてあげている関数より下に書く必要があります
+# 関数より前に書くと、関数未定義エラーとなります。
+X_ELEMENTS_LIST=[
+    {'description':u'ホスト名',     'command_name':'command_hostname'},
+    {'description':u'カーネル',     'command_name':'command_uname',
+        'filter_method':parseUnameA},
+    {'description':u'IPアドレス',   'command_name':'command_ip_addr',
+        'filter_method':parseIPAddr},
+    {'description':u'ルーティング', 'command_name':'command_ip_route',
+        'filter_method':parseRoute},
+    {'description':u'DNS',          'command_name':'command_resolv',
+        'filter_method':parseResolvConf},
+    {'description':u'CPU',          'command_name':'command_proc_cpuinfo',
+        'filter_method':parseCPUInfo},
+    {'description':u'メモリ',       'command_name':'command_proc_meminfo',
+        'filter_pattern':r'^(Mem|Swap)Total'},
+    {'description':u'ディスク',     'command_name':'command_df_h',
+        'filter_pattern':r'^[^(proc|sysfs|dev|none|tmp)]'},
+#    {'description':u'',  'command_name':'command_'},
+    ]
+    
+#------------------------------------------------------------------------------#
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0',port=5000,debug=True)
