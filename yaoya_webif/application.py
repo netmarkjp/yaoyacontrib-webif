@@ -117,7 +117,6 @@ def parseCPUInfo( rawdata ):
       model_name = data[1]
     elif cpu_MHz == "" and re.match( "cpu MHz", data[0] ):
       cpu_MHz = data[1]
-      print "\"%s\"" % cpu_MHz
   
   result =  ""
   result += "Model: %s\n" % model_name
