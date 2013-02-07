@@ -5,6 +5,9 @@ Documents
 {% block script %}
 <script src="/static/js/DateFormatter.js" type="text/javascript"></script>
 <script languate="javascript">
+/**
+ * プルダウンに入る一覧を更新
+ */
 function updateList(url, target){
     $.getJSON(url,{},function(jsondata){
         var values=jsondata['values'];
@@ -13,6 +16,10 @@ function updateList(url, target){
         });
     });
 };
+
+/**
+ * プルダウン切り替え時にテキストエリアにデータを反映
+ */
 $(function(){
     updateList('/api/values/*/group_name','#select_group');
     $('#select_group').change(function(){
@@ -26,6 +33,36 @@ $(function(){
         $.get('/api/chkconfigs_text/'+group_name,{},function(textdata){
             $('#chkconfigs_table').val( textdata );
         });
+    });
+});
+
+/**
+ * テキストエリアをフォーカス
+ */
+$(document).ready(function(){
+  $('#result_table')
+    .focus(function(){
+      $(this).select();
+    })
+    .click(function(){
+      $(this).select();
+      return false;
+    })
+  $('#rpms_table')
+    .focus(function(){
+      $(this).select();
+    })
+    .click(function(){
+      $(this).select();
+      return false;
+    })
+  $('#chkconfigs_table')
+    .focus(function(){
+      $(this).select();
+    })
+    .click(function(){
+      $(this).select();
+      return false;
     });
 });
 </script>
