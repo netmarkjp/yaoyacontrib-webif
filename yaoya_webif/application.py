@@ -46,16 +46,18 @@ def parseIPAddr( rawdata ):
   result = []
   
   for line in lines:
-    if ifname == "" and re.match( "^([0-9]+)", line ):
+    if re.match( "^([0-9]+)", line ):
       ifname = line.split( " " )[1]
       ifname = ifname.replace( ":", "" )
-    elif re.match( "( +)inet ", line ):
-      ipaddr = line.strip()
-      ipaddr = ipaddr.split( " " )[1]
+    elif ifname != "" and re.match( "( +)inet ", line ):
+      info   = line.strip()
+      info   = info.split( " " )
+      if len( info ) == 8 and info[6] == "secondary":
+        ifname = info[7]
+      ipaddr = info[1]
       ipaddr = ipaddr.split( "/" )[0]
       if ifname != 'lo':
         result.append( "%s:%s" % ( ifname, ipaddr ) )
-      ifname = ""
   
   return "\n".join( result )
 
