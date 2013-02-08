@@ -127,8 +127,7 @@ def parseCPUInfo( rawdata ):
 
 #------------------------------------------------------------------------------#
 
-def get_latest(group_name,host_name,command_name):
-    connection = Connection(MONGODB_HOST, MONGODB_PORT)
+def get_latest(connection,group_name,host_name,command_name):
     collection = connection[DBS_NAME][COLLECTION_NAME]
     filter_condition={'visible':'True'}
     filter_condition.update({'group_name':group_name})
@@ -137,8 +136,7 @@ def get_latest(group_name,host_name,command_name):
     latest=collection.find(filter_condition).sort('time',DESCENDING).limit(1).next()
     return latest
 
-def get_command_names(group_name,host_name):
-    connection = Connection(MONGODB_HOST, MONGODB_PORT)
+def get_command_names(connection,group_name,host_name):
     collection = connection[DBS_NAME][COLLECTION_NAME]
     filter_condition={'visible':'True'}
     filter_condition.update({'group_name':group_name})
@@ -146,8 +144,7 @@ def get_command_names(group_name,host_name):
     command_names = collection.find(filter_condition).distinct('command_name')
     return command_names
 
-def get_host_names(group_name):
-    connection = Connection(MONGODB_HOST, MONGODB_PORT)
+def get_host_names(connection,group_name):
     collection = connection[DBS_NAME][COLLECTION_NAME]
     filter_condition={'visible':'True'}
     filter_condition.update({'group_name':group_name})
@@ -229,7 +226,7 @@ def api_results(group_name,field_name):
     connection.disconnect()
     return jsonify({'results':jsondata})
 
-def get_latests(group_name):
+def get_latests(connection,group_name):
     """
     {'results':[
         host1_result1,
@@ -243,23 +240,23 @@ def get_latests(group_name):
     """
     latests={}
     latests.update({'group_name':group_name})
-    host_names=get_host_names(group_name)
+    host_names=get_host_names(connection, group_name)
     host_names.sort()
     latests.update({'host_names':host_names})
     results=list()
     for host_name in host_names:
         host={}
-        command_names=get_command_names(group_name,host_name)
+        command_names=get_command_names(connection,group_name,host_name)
         command_names.sort()
         for command_name in command_names:
-            latest=get_latest(group_name,host_name,command_name)
+            latest=get_latest(connection,group_name,host_name,command_name)
             results.append(normalize_result(latest))
     latests.update({'results':results})
     return latests
 
 @app.route("/api/latests/<group_name>")
 def api_latests(group_name):
-    return jsonify(get_latests(group_name))
+    return jsonify(get_latests(connection,group_name))
 
 def to_html(text):
     text=re.compile(r'\n').sub('<br />',text)
@@ -267,10 +264,11 @@ def to_html(text):
 
 @app.route("/api/latests_html/<group_name>")
 def api_latests_html(group_name):
-    jsondata=get_latests(group_name)
+    connection = Connection(MONGODB_HOST, MONGODB_PORT)
+    jsondata=get_latests(connection,group_name)
     html_output=''
     newline_to_br=re.compile(r'\n')
-    host_names=get_host_names(group_name)
+    host_names=get_host_names(connection,group_name)
     host_names.sort()
     html_output=html_output+'<tr>'
     html_output=html_output+'<td style="white-space:pre;">'
@@ -328,14 +326,15 @@ def filter_rpms(output):
 
 @app.route("/api/rpms_html/<group_name>")
 def api_rpms_html(group_name):
-    host_names=get_host_names(group_name)
+    connection = Connection(MONGODB_HOST, MONGODB_PORT)
+    host_names=get_host_names(connection,group_name)
     host_names.sort()
     hosts=[]
     for host_name in host_names:
         host=MyHost()
         host.host_name=host_name
 
-        latest=get_latest(group_name,host_name,'command_rpm')
+        latest=get_latest(connection,group_name,host_name,'command_rpm')
         host.rpms=[rpm for rpm in filter_rpms(latest['output'])]
         hosts.append(host)
     rpms=[]
@@ -373,14 +372,15 @@ def filter_chkconfigs(runlevel,output):
 
 @app.route("/api/chkconfigs_html/<group_name>")
 def api_chkconfigs_html(group_name):
-    host_names=get_host_names(group_name)
+    connection = Connection(MONGODB_HOST, MONGODB_PORT)
+    host_names=get_host_names(connection,group_name)
     host_names.sort()
     hosts=[]
     for host_name in host_names:
         host=MyHost()
         host.host_name=host_name
 
-        latest=get_latest(group_name,host_name,'command_chkconfig')
+        latest=get_latest(connection,group_name,host_name,'command_chkconfig')
         host.chkconfigs=[chkconfig for chkconfig in filter_chkconfigs('3',latest['output'])]
         hosts.append(host)
     chkconfigs=[]
@@ -416,9 +416,10 @@ def api_latests_text(group_name):
     @param group_name グループ名を指定します
     @return ExcelでコピペがしやすいTSV形式のテキストを返します
     """
-    jsondata=get_latests(group_name)
+    connection = Connection(MONGODB_HOST, MONGODB_PORT)
+    jsondata=get_latests(connection,group_name)
     text_output=''
-    host_names=get_host_names(group_name)
+    host_names=get_host_names(connection,group_name)
     host_names.sort()
     text_output += "\"%s\"\t" % u'ホスト名'
     for host_name in host_names:
@@ -459,14 +460,15 @@ def api_rpms_text(group_name):
     @param group_name グループ名を指定します
     @return ExcelでコピペがしやすいTSV形式のテキストを返します
     """
-    host_names=get_host_names(group_name)
+    connection = Connection(MONGODB_HOST, MONGODB_PORT)
+    host_names=get_host_names(connection,group_name)
     host_names.sort()
     hosts=[]
     for host_name in host_names:
         host=MyHost()
         host.host_name=host_name
 
-        latest=get_latest(group_name,host_name,'command_rpm')
+        latest=get_latest(connection,group_name,host_name,'command_rpm')
         host.rpms=[rpm for rpm in filter_rpms(latest['output'])]
         hosts.append(host)
     rpms=[]
@@ -501,16 +503,15 @@ def api_chkconfigs_text(group_name):
     @param group_name グループ名を指定します
     @return ExcelでコピペがしやすいTSV形式のテキストを返します
     """
-    #header("Content-type: text/plain")
-    
-    host_names=get_host_names(group_name)
+    connection = Connection(MONGODB_HOST, MONGODB_PORT)
+    host_names=get_host_names(connection,group_name)
     host_names.sort()
     hosts=[]
     for host_name in host_names:
         host=MyHost()
         host.host_name=host_name
 
-        latest=get_latest(group_name,host_name,'command_chkconfig')
+        latest=get_latest(connection,group_name,host_name,'command_chkconfig')
         host.chkconfigs=[chkconfig for chkconfig in filter_chkconfigs('3',latest['output'])]
         hosts.append(host)
     chkconfigs=[]
