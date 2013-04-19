@@ -217,6 +217,8 @@ def api_results(group_name,field_name):
         if item == '':
             continue
         else:
+            ## output
+            item['output'] = escape( item['output'] )
             ## _id
             item['_id']=str(item['_id'])
             ## time
